@@ -1,0 +1,122 @@
+{
+  "manifest_version": 3,
+  "name": "Pocket",
+  "version": "1.0.0",
+  "description": "Collegiapp's Pocket look: P9 Cream when Firefox is light, P11 Night when it's dark.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pocket-theme@collegiapp",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "icons": { "32": "icons/pocket.svg", "64": "icons/pocket.svg" },
+
+  "theme": {
+    "images": {
+      "additional_backgrounds": ["images/grid-cream.svg"]
+    },
+    "properties": {
+      "additional_backgrounds_alignment": ["left top"],
+      "additional_backgrounds_tiling": ["repeat"],
+      "color_scheme": "light"
+    },
+    "colors": {
+      "frame": "#e6e2d8",
+      "tab_background_text": "#4a453c",
+      "tab_selected": "#2a2722",
+      "tab_text": "#f6f3ec",
+      "tab_line": "#000000",
+      "tab_loading": "#ff5b1f",
+
+      "toolbar": "#f6f3ec",
+      "toolbar_text": "#1b1915",
+      "icons": "#1b1915",
+      "icons_attention": "#ff5b1f",
+      "button_background_hover": "#ebe7dd",
+      "button_background_active": "#d3ccbd",
+      "toolbar_top_separator": "#d3ccbd",
+      "toolbar_bottom_separator": "#d3ccbd",
+      "toolbar_vertical_separator": "#d3ccbd",
+
+      "toolbar_field": "#fbf9f4",
+      "toolbar_field_text": "#1b1915",
+      "toolbar_field_border": "#d3ccbd",
+      "toolbar_field_focus": "#fbf9f4",
+      "toolbar_field_text_focus": "#1b1915",
+      "toolbar_field_border_focus": "#ff5b1f",
+      "toolbar_field_highlight": "#fcc6b0",
+      "toolbar_field_highlight_text": "#1b1915",
+
+      "popup": "#f6f3ec",
+      "popup_text": "#1b1915",
+      "popup_border": "#d3ccbd",
+      "popup_highlight": "#f7dbcb",
+      "popup_highlight_text": "#1b1915",
+
+      "sidebar": "#f6f3ec",
+      "sidebar_text": "#1b1915",
+      "sidebar_border": "#d3ccbd",
+      "sidebar_highlight": "#f7dbcb",
+      "sidebar_highlight_text": "#1b1915",
+
+      "ntp_background": "#e6e2d8",
+      "ntp_card_background": "#f6f3ec",
+      "ntp_text": "#1b1915"
+    }
+  },
+
+  "dark_theme": {
+    "images": {
+      "additional_backgrounds": ["images/grid-night.svg"]
+    },
+    "properties": {
+      "additional_backgrounds_alignment": ["left top"],
+      "additional_backgrounds_tiling": ["repeat"],
+      "color_scheme": "dark"
+    },
+    "colors": {
+      "frame": "#1a1917",
+      "tab_background_text": "#d0c9ba",
+      "tab_selected": "#0f0e0d",
+      "tab_text": "#ece6da",
+      "tab_line": "#b24a1e",
+      "tab_loading": "#ff6a2b",
+
+      "toolbar": "#262522",
+      "toolbar_text": "#f4efe5",
+      "icons": "#f4efe5",
+      "icons_attention": "#ff6a2b",
+      "button_background_hover": "#302e2a",
+      "button_background_active": "#3f3c36",
+      "toolbar_top_separator": "#3f3c36",
+      "toolbar_bottom_separator": "#3f3c36",
+      "toolbar_vertical_separator": "#3f3c36",
+
+      "toolbar_field": "#2a2926",
+      "toolbar_field_text": "#f4efe5",
+      "toolbar_field_border": "#3f3c36",
+      "toolbar_field_focus": "#2a2926",
+      "toolbar_field_text_focus": "#f4efe5",
+      "toolbar_field_border_focus": "#ff6a2b",
+      "toolbar_field_highlight": "#6e3e28",
+      "toolbar_field_highlight_text": "#f4efe5",
+
+      "popup": "#262522",
+      "popup_text": "#f4efe5",
+      "popup_border": "#3f3c36",
+      "popup_highlight": "#493023",
+      "popup_highlight_text": "#f4efe5",
+
+      "sidebar": "#262522",
+      "sidebar_text": "#f4efe5",
+      "sidebar_border": "#3f3c36",
+      "sidebar_highlight": "#493023",
+      "sidebar_highlight_text": "#f4efe5",
+
+      "ntp_background": "#1a1917",
+      "ntp_card_background": "#262522",
+      "ntp_text": "#f4efe5"
+    }
+  }
+}

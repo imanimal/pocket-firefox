@@ -1,0 +1,605 @@
+/* Pocket for Firefox: the new-tab and PDF viewer layer (uikit/docs/UIKit/README.md is the reference).
+   The PDF viewer section is at the end of this file and has its own notes. */
+
+/* New tab and home page.
+   Turns Firefox's own new tab and home page (about:newtab, about:home) into the Pocket desk: the dot-grid body,
+   a recessed search field with the accent ring, shortcuts as B8 keys, section titles as F3 label bands and
+   story cards as modules. Everything stays Firefox's: the search box, shortcuts, stories, wallpapers and the
+   Personalize panel all keep working; this only restyles them.
+
+   - It's a user sheet, so anything that must beat the page's own styles carries !important.
+   - The page sets colours through design tokens (--newtab-*, --background-color-*, --text-color …). This file
+     sets those tokens instead of chasing class names, so parts it never names still come out in Pocket colours.
+   - Both palettes sit side by side as light-dark(P9 Cream, P11 Night). The page follows prefers-color-scheme,
+     which the Pocket theme sets (Cream when Firefox is light, Night when it's dark).
+   - A wallpaper you pick in Personalize wins over the dot grid. */
+
+/* a key's travel, 0 up to 1 bottomed out (negative is the rebound); registered so it can spring */
+@property --pk-press { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+@-moz-document url("about:newtab"), url("about:home") {
+  :root {
+    color-scheme: light dark !important;
+
+    /*                   P9 Cream   P11 Night */
+    --pk-bg:        light-dark(#e6e2d8, #1a1917);
+    --pk-bg2:       light-dark(#fbf9f4, #2a2926);
+    --pk-surface:   light-dark(#f6f3ec, #262522);
+    --pk-surface-2: light-dark(#ebe7dd, #302e2a);
+    --pk-line:      light-dark(#d3ccbd, #3f3c36);
+    --pk-text:      light-dark(#1b1915, #f4efe5);
+    --pk-text-2:    light-dark(#4a453c, #d0c9ba);
+    --pk-text-3:    light-dark(#6a645a, #a39c8d);
+    --pk-chrome-bg: light-dark(#2a2722, #0f0e0d);
+    --pk-chrome-fg: light-dark(#f6f3ec, #ece6da);
+    --pk-accent:    light-dark(#ff5b1f, #ff6a2b);
+    --pk-on-accent: #1b1915;
+    --pk-card-lip:  light-dark(#d3ccbd, #0b0a09);
+    --pk-card-shade: light-dark(rgba(40, 30, 10, .07), rgba(0, 0, 0, .3));
+    --pk-accent-soft: color-mix(in srgb, var(--pk-accent) 16%, transparent);
+    --pk-font-ui: "Space Grotesk", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+    --pk-font-mono: "Space Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    --pk-card: 0 0 0 1px var(--pk-line), 0 2px 0 var(--pk-card-lip), 0 10px 24px var(--pk-card-shade);
+    --pk-m: 1;
+    --pk-ease-back: cubic-bezier(.3, 1.45, .5, 1);
+
+    /* the page's tokens */
+    --newtab-background-color: var(--pk-bg) !important;
+    --newtab-background-color-secondary: var(--pk-surface) !important;
+    --newtab-background-card: var(--pk-surface) !important;
+    --newtab-text-primary-color: var(--pk-text) !important;
+    --newtab-text-secondary-color: var(--pk-text-3) !important;
+    --newtab-text-secondary-text: var(--pk-text-3) !important;
+    --newtab-contextual-text-primary-color: var(--pk-text) !important;
+    --newtab-contextual-text-secondary-color: var(--pk-text-2) !important;
+    --newtab-text-topic-label-color: var(--pk-text-2) !important;
+    --newtab-primary-action-background: var(--pk-accent) !important;
+    --newtab-primary-action-background-dimmed: var(--pk-accent-soft) !important;
+    --newtab-wordmark-color: var(--pk-text) !important;
+    --background-color-canvas: var(--pk-bg) !important;
+    --background-color-box: var(--pk-surface) !important;
+    --card-background-color: var(--pk-surface) !important;
+    --card-box-shadow: var(--pk-card) !important;
+    --text-color: var(--pk-text) !important;
+    --text-color-deemphasized: var(--pk-text-3) !important;
+    --border-color: var(--pk-line) !important;
+    --border-color-deemphasized: var(--pk-line) !important;
+    --color-accent-primary: var(--pk-accent) !important;
+    --focus-outline-color: var(--pk-accent) !important;
+    --link-color: var(--pk-text) !important;
+    --button-text-color: var(--pk-text) !important;
+    --button-background-color: var(--pk-surface-2) !important;
+    --button-background-color-hover: var(--pk-surface-2) !important;
+    --button-background-color-active: var(--pk-surface-2) !important;
+    --button-background-color-primary: var(--pk-accent) !important;
+    --button-text-color-primary: var(--pk-on-accent) !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root { --pk-m: 0 !important; }
+  }
+
+  /* ───────────── the desk: Space Grotesk on the dot grid ───────────── */
+  body {
+    font-family: var(--pk-font-ui) !important;
+    color: var(--pk-text) !important;
+  }
+  body:not(.lightWallpaper, .darkWallpaper) {
+    background-color: var(--pk-bg) !important;
+    background-image: radial-gradient(color-mix(in srgb, var(--pk-text) 12%, transparent) 1px, transparent 1.5px) !important;
+    background-size: 16px 16px !important;
+    background-repeat: repeat !important;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--pk-accent) 32%, transparent);
+  }
+
+  /* ───────────── search: a recessed field, the accent ring when it has focus ─────────────
+   The box is a component with its own shadow root; it reads these tokens through inheritance. */
+  .search-wrapper {
+    --urlbar-background-color: var(--pk-bg2) !important;
+    --urlbar-background-color-focus: var(--pk-bg2) !important;
+    --urlbar-border-radius: 10px !important;
+    --urlbarview-border-radius: 10px !important;
+    --urlbarview-background-color-hover: var(--pk-surface-2) !important;
+    --urlbarview-background-color-selected: var(--pk-accent-soft) !important;
+    --urlbarview-text-color-selected: var(--pk-text) !important;
+    --toolbar-field-background-color: var(--pk-bg2) !important;
+    --toolbar-field-background-color-focus: var(--pk-bg2) !important;
+    --toolbar-field-border-color: var(--pk-line) !important;
+    --toolbar-field-border-color-focus: var(--pk-accent) !important;
+    --toolbar-field-text-color: var(--pk-text) !important;
+    --toolbar-field-text-color-focus: var(--pk-text) !important;
+    --panel-background-color: var(--pk-surface) !important;
+    --panel-text-color: var(--pk-text) !important;
+    --content-search-handoff-ui-background-color: var(--pk-bg2) !important;
+    --content-search-handoff-ui-color: var(--pk-text) !important;
+    --content-search-handoff-ui-fill: var(--pk-text-3) !important;
+    --content-search-handoff-ui-caret-color: var(--pk-accent) !important;
+    --content-search-handoff-ui-fakefocus-border-color: var(--pk-accent) !important;
+    --content-search-handoff-ui-fakefocus-box-shadow-inner: var(--pk-accent-soft) !important;
+    --content-search-handoff-ui-fakefocus-box-shadow-outer: transparent !important;
+  }
+
+  /* ───────────── shortcuts: each tile is a B8 key on a 3 px lip ───────────── */
+  .top-site-outer .tile {
+    --pk-ring: color-mix(in srgb, var(--pk-line) 75%, #000);
+    --pk-lip: color-mix(in srgb, var(--pk-line) 55%, #000);
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: linear-gradient(to bottom, color-mix(in srgb, #fff var(--pk-shine, 14%), var(--pk-surface-2)), var(--pk-surface-2)) !important;
+    translate: 0 calc(var(--pk-press) * 3px);
+    box-shadow:
+      0 0 0 1px var(--pk-ring),
+      0 calc((1 - var(--pk-press)) * 3px) 0 var(--pk-lip),
+      0 calc(5px - var(--pk-press) * 4px) calc(10px - var(--pk-press) * 7px) rgba(0, 0, 0, .14) !important;
+    transition: --pk-press calc(var(--pk-m) * 240ms + 1ms) var(--pk-ease-back) !important;
+  }
+  .top-site-outer:active .tile {
+    --pk-press: 1;
+    transition-duration: calc(var(--pk-m) * 60ms + 1ms) !important;
+  }
+  @media (hover: hover) {
+    .top-site-outer:hover .tile { --pk-shine: 26%; }
+  }
+  .top-site-outer .top-site-inner > a:focus-visible .tile {
+    outline: 2px solid var(--pk-accent) !important;
+    outline-offset: 2px !important;
+  }
+  .top-site-outer .title {
+    color: var(--pk-text-2) !important;
+  }
+
+  /* the Personalize key */
+  .personalize-button {
+    background-color: var(--pk-surface-2) !important;
+    color: var(--pk-text) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--pk-line) 75%, #000), 0 3px 0 color-mix(in srgb, var(--pk-line) 55%, #000), 0 5px 10px rgba(0, 0, 0, .14) !important;
+  }
+  .personalize-button:active {
+    translate: 0 3px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--pk-line) 75%, #000), 0 1px 3px rgba(0, 0, 0, .12) !important;
+  }
+
+  /* ───────────── sections: F3 label bands over module cards ───────────── */
+  :is(.collapsible-section, .ds-section-wrapper .ds-section) .section-title {
+    display: flex !important;
+    align-items: center;
+    gap: .6em;
+    min-height: 2.55em;
+    padding: .3em .9em !important;
+    border-radius: 9px;
+    background: var(--pk-chrome-bg) !important;
+    color: var(--pk-chrome-fg) !important;
+    fill: var(--pk-accent) !important;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .25);
+    font-size: .78em !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: .11em;
+  }
+  .ds-card {
+    background: var(--pk-surface) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--pk-card) !important;
+  }
+}
+
+/* ═════════════════════════════ the PDF viewer ═════════════════════════════
+   Firefox's built-in PDF viewer (pdf.js) as a Pocket device: the dot-grid desk with each page lifted on a module
+   lip, a toolbar of B8 keys, the page number as an LCD inlay, a graphite F3 band across the sidebar header, module
+   doorhangers and dialogs, and accent find highlights. The pages themselves are never recoloured.
+
+   - The viewer's address is the PDF's own URL, so @-moz-document can't find it. It's matched by its root instead:
+     viewer.html is the only page whose <html> carries mozdisallowselectionprint and holds #outerContainer.
+   - pdf.js reads its colours from its own tokens (--toolbar-bg-color, --field-*, --doorhanger-* …), which fall back
+     to Firefox's design tokens when Nova is on. This sets both, so it works with Nova on or off. Tokens that pdf.js
+     declares on an inner element (.sidebar, #viewsManager, .treeView, .popupMenu, .dialog …) are set on that element.
+   - The toolbar, sidebar, menus and dialogs are Space Grotesk. The text layer over each page keeps the document's
+     own metrics, so selecting text still lines up.
+   - High-contrast mode is left entirely to pdf.js. */
+
+@media not (forced-colors: active) {
+  :root[mozdisallowselectionprint]:has(> body > #outerContainer) {
+    /*                   P9 Cream   P11 Night   (the same values as the new tab block above) */
+    --pk-bg:        light-dark(#e6e2d8, #1a1917);
+    --pk-bg2:       light-dark(#fbf9f4, #2a2926);
+    --pk-surface:   light-dark(#f6f3ec, #262522);
+    --pk-surface-2: light-dark(#ebe7dd, #302e2a);
+    --pk-line:      light-dark(#d3ccbd, #3f3c36);
+    --pk-text:      light-dark(#1b1915, #f4efe5);
+    --pk-text-2:    light-dark(#4a453c, #d0c9ba);
+    --pk-text-3:    light-dark(#6a645a, #a39c8d);
+    --pk-chrome-bg: light-dark(#2a2722, #0f0e0d);
+    --pk-chrome-fg: light-dark(#f6f3ec, #ece6da);
+    --pk-accent:    light-dark(#ff5b1f, #ff6a2b);
+    --pk-on-accent: #1b1915;
+    --pk-disp-bg:   light-dark(#b1bd93, #45b3a1);
+    --pk-disp-fg:   light-dark(#1f2a17, #04211c);
+    --pk-card-lip:  light-dark(#d3ccbd, #0b0a09);
+    --pk-card-shade: light-dark(rgba(40, 30, 10, .07), rgba(0, 0, 0, .3));
+    --pk-accent-soft: color-mix(in srgb, var(--pk-accent) 16%, transparent);
+    --pk-ring: color-mix(in srgb, var(--pk-line) 75%, #000);
+    --pk-key-lip: color-mix(in srgb, var(--pk-line) 55%, #000);
+    --pk-radius: 14px;
+    --pk-btn-r: 10px;
+    --pk-font-ui: "Space Grotesk", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+    --pk-font-mono: "Space Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    --pk-lift: 0 2px 0 var(--pk-card-lip), 0 10px 24px var(--pk-card-shade);
+    --pk-m: 1;
+    --pk-ease-back: cubic-bezier(.3, 1.45, .5, 1);
+
+    /* Firefox's design tokens, which pdf.js falls back to with Nova on */
+    --text-color: var(--pk-text) !important;
+    --text-color-deemphasized: var(--pk-text-3) !important;
+    --background-color-canvas: var(--pk-bg) !important;
+    --background-color-box: var(--pk-surface) !important;
+    --background-color-box-info: var(--pk-surface-2) !important;
+    --border-color-deemphasized: var(--pk-line) !important;
+    --border-color-interactive: var(--pk-ring) !important;
+    --color-accent-primary: var(--pk-accent) !important;
+    --focus-outline-color: var(--pk-accent) !important;
+    --link-color: var(--pk-text) !important;
+    --link-color-hover: var(--pk-text-2) !important;
+    --button-border-radius: var(--pk-btn-r) !important;
+    --button-border-color: var(--pk-ring) !important;
+    --button-background-color: var(--pk-surface-2) !important;
+    --button-background-color-hover: var(--pk-line) !important;
+    --button-background-color-active: var(--pk-line) !important;
+    --button-background-color-primary: var(--pk-accent) !important;
+    --button-background-color-primary-hover: color-mix(in srgb, var(--pk-accent) 88%, #000) !important;
+    --button-background-color-primary-active: color-mix(in srgb, var(--pk-accent) 78%, #000) !important;
+    --button-text-color-primary: var(--pk-on-accent) !important;
+    --panel-border-radius: var(--pk-radius) !important;
+    --panel-menuitem-border-radius: 7px !important;
+    --box-shadow-level-2: var(--pk-lift) !important;
+    --box-shadow-level-3: var(--pk-lift) !important;
+
+    /* pdf.js's own tokens */
+    --main-color: var(--pk-text) !important;
+    --body-bg-color: var(--pk-bg) !important;
+    --progressBar-color: var(--pk-accent) !important;
+    --progressBar-bg-color: var(--pk-line) !important;
+    --progressBar-blend-color: color-mix(in srgb, var(--pk-accent) 40%, var(--pk-surface)) !important;
+    --scrollbar-color: var(--pk-text-3) !important;
+    --scrollbar-bg-color: transparent !important;
+    --toolbar-icon-opacity: 1 !important;
+    --doorhanger-icon-opacity: 1 !important;
+    --toolbar-icon-bg-color: var(--pk-text) !important;
+    --toolbar-icon-hover-bg-color: var(--pk-text) !important;
+    --toolbar-bg-color: var(--pk-surface) !important;
+    --toolbar-border-color: var(--pk-line) !important;
+    --sidebar-toolbar-bg-color: var(--pk-surface) !important;
+    --sidebar-narrow-bg-color: color-mix(in srgb, var(--pk-bg) 90%, transparent) !important;
+    --button-hover-color: var(--pk-accent-soft) !important;
+    --toggled-btn-color: var(--pk-accent) !important;
+    --toggled-btn-text-color: var(--pk-text) !important;
+    --toggled-btn-bg-color: var(--pk-chrome-bg) !important;
+    --toggled-hover-active-btn-color: var(--pk-chrome-bg) !important;
+    --dropdown-btn-bg-color: var(--pk-surface-2) !important;
+    --dropdown-btn-border: none !important;
+    --separator-color: var(--pk-line) !important;
+    --field-color: var(--pk-text) !important;
+    --field-bg-color: var(--pk-bg2) !important;
+    --field-border-color: var(--pk-line) !important;
+    --doorhanger-bg-color: var(--pk-surface) !important;
+    --doorhanger-border-color: var(--pk-line) !important;
+    --doorhanger-hover-color: var(--pk-text) !important;
+    --doorhanger-separator-color: var(--pk-line) !important;
+    --outline-color: var(--pk-accent) !important;
+    --hover-outline-color: var(--pk-text-3) !important;
+
+    @media (prefers-reduced-motion: reduce) {
+      --pk-m: 0;
+    }
+
+    /* ───────────── type: Space Grotesk on everything that's the viewer's, never on the document ───────────── */
+    :is(#toolbarContainer, dialog, .popupMenu, .editToolbar),
+    :is(#toolbarContainer, dialog, .popupMenu, .editToolbar) * {
+      font-family: var(--pk-font-ui) !important;
+    }
+
+    /* ───────────── the desk: the dot grid behind the pages, each page a module on a 2 px lip ───────────── */
+    #viewerContainer:not(.pdfPresentationMode) {
+      background-color: var(--pk-bg) !important;
+      background-image: radial-gradient(color-mix(in srgb, var(--pk-text) 12%, transparent) 1px, transparent 1.5px) !important;
+      background-size: 16px 16px !important;
+      background-attachment: local !important;
+
+      .page > .canvasWrapper {
+        box-shadow: 0 0 0 1px var(--pk-line), var(--pk-lift) !important;
+      }
+    }
+    /* find matches and the selection in the accent; the current match is the stronger wash */
+    .textLayer .highlight {
+      --highlight-bg-color: color-mix(in srgb, var(--pk-accent) 24%, transparent) !important;
+      --highlight-selected-bg-color: color-mix(in srgb, var(--pk-accent) 55%, transparent) !important;
+    }
+    .textLayer:not(.selectionRendering) ::selection,
+    .pdfViewer .canvasWrapper .selection {
+      background: color-mix(in srgb, var(--pk-accent) 32%, transparent) !important;
+    }
+
+    /* ───────────── toolbar ───────────── */
+    #toolbarContainer {
+      box-shadow: 0 1px 0 var(--pk-line) !important;
+    }
+    #toolbarViewer .toolbarHorizontalGroup {
+      gap: 4px !important;
+    }
+
+    /* B8 keys: each toolbar button is a raised key on a 3 px lip. The face gives up the lip's height, so key and lip
+       together fill the toolbar exactly as the flat button did. Pressing sinks it; letting go springs it back past
+       the top. Buttons inside menus, the sidebar and the find bar stay flat. */
+    #toolbarViewer .toolbarButton:not(.labeled, .viewsManagerButton, .menu *, .sidebar *, .popupMenu *, #findbar *, .doorHanger *, .doorHangerRight *) {
+      --pk-travel: 3px;
+      --pk-face: var(--pk-surface-2);
+      --pk-glyph: var(--pk-text);
+      --pk-key-ring: var(--pk-ring);
+      --pk-lip: var(--pk-key-lip);
+      --pk-shade: rgba(0, 0, 0, .14);
+      --pk-shine: 14%;
+      align-self: flex-start !important;
+      width: calc(var(--toolbar-height) - 2 * var(--toolbar-vertical-padding)) !important;
+      height: calc(var(--toolbar-height) - 2 * var(--toolbar-vertical-padding) - var(--pk-travel)) !important;
+      aspect-ratio: auto !important;
+      border-radius: var(--pk-btn-r) !important;
+      background: linear-gradient(to bottom, color-mix(in srgb, #fff var(--pk-shine), var(--pk-face)), var(--pk-face)) !important;
+      translate: 0 calc(var(--pk-press) * var(--pk-travel)) !important;
+      box-shadow:
+        0 0 0 1px var(--pk-key-ring),
+        0 calc((1 - var(--pk-press)) * var(--pk-travel)) 0 var(--pk-lip),
+        0 calc(5px - var(--pk-press) * 4px) calc(10px - var(--pk-press) * 7px) var(--pk-shade) !important;
+      outline: none !important;
+      transition: --pk-press calc(var(--pk-m) * 240ms + 1ms) var(--pk-ease-back), background calc(var(--pk-m) * 120ms + 1ms) !important;
+
+      &::before {
+        background-color: var(--pk-glyph) !important;
+      }
+      @media (hover: hover) {
+        &:hover { --pk-shine: 26%; }
+      }
+      &:not([disabled]):is(:hover:active, [aria-expanded="true"]) {
+        --pk-press: 1;
+        transition: --pk-press calc(var(--pk-m) * 60ms + 1ms) ease-out, background calc(var(--pk-m) * 120ms + 1ms) !important;
+      }
+      /* a latched key (the sidebar is open, an editing tool is on) is the dark key, its icon lit orange */
+      &.toggled {
+        --pk-face: var(--pk-chrome-bg);
+        --pk-glyph: var(--pk-accent);
+        --pk-key-ring: #000;
+        --pk-lip: #000;
+        --pk-shade: rgba(0, 0, 0, .2);
+        --pk-shine: 12%;
+      }
+      @media (hover: hover) {
+        &.toggled:hover { --pk-shine: 22%; }
+      }
+      &:focus-visible {
+        outline: 2px solid var(--pk-accent) !important;
+        outline-offset: 2px !important;
+      }
+      &:is([disabled], [disabled="disabled"]) {
+        opacity: .45 !important;
+      }
+    }
+
+    /* the page number is the device's LCD: dark digits on the reflective panel in a graphite bezel.
+       Focus it and it becomes a plain recessed field with the accent ring, like the URL bar. It never tweens. */
+    #pageNumber {
+      font-family: var(--pk-font-mono) !important;
+      font-weight: 700 !important;
+      border-radius: 8px !important;
+      transition: none !important;
+
+      &:not(:focus) {
+        color: var(--pk-disp-fg) !important;
+        border: 3px solid var(--pk-chrome-bg) !important;
+        padding: 2px 5px !important;
+        background:
+          repeating-linear-gradient(90deg, rgba(0, 0, 0, .045) 0 1px, transparent 1px 3px),
+          repeating-linear-gradient(0deg, rgba(0, 0, 0, .045) 0 1px, transparent 1px 3px),
+          linear-gradient(170deg, color-mix(in srgb, #fff 18%, var(--pk-disp-bg)), var(--pk-disp-bg) 60%) !important;
+        background-clip: padding-box !important;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(0, 0, 0, .3), 0 0 0 1px #000 !important;
+      }
+      &:focus {
+        border: 1px solid var(--pk-accent) !important;
+        padding: 4px 7px !important;
+        box-shadow: 0 0 0 1px var(--pk-accent) !important;
+        outline: none !important;
+      }
+    }
+    #numPages {
+      font-family: var(--pk-font-mono) !important;
+      color: var(--pk-text-2) !important;
+    }
+
+    /* fields: recessed, the accent ring when focused */
+    .toolbarField:not(#pageNumber) {
+      border-radius: 8px !important;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, .08) !important;
+
+      &:focus {
+        border-color: var(--pk-accent) !important;
+        box-shadow: 0 0 0 1px var(--pk-accent) !important;
+        outline: none !important;
+      }
+    }
+
+    /* the zoom menu is a key too, on a 2 px lip */
+    #scaleSelectContainer {
+      overflow: hidden !important;
+      border-radius: var(--pk-btn-r) !important;
+      box-shadow: 0 0 0 1px var(--pk-ring), 0 2px 0 var(--pk-key-lip), 0 4px 8px rgba(0, 0, 0, .12) !important;
+
+      > select {
+        color: var(--pk-text) !important;
+        background: linear-gradient(to bottom, color-mix(in srgb, #fff 14%, var(--pk-surface-2)), var(--pk-surface-2)) !important;
+      }
+      > select:is(:hover, :focus-visible) {
+        background: linear-gradient(to bottom, color-mix(in srgb, #fff 26%, var(--pk-surface-2)), var(--pk-surface-2)) !important;
+      }
+      &:has(> select:focus-visible) {
+        outline: 2px solid var(--pk-accent) !important;
+        outline-offset: 2px !important;
+      }
+    }
+
+    /* ───────────── doorhangers: the find bar, the tools menu and tool options are modules on a 2 px lip ───────────── */
+    :is(.doorHanger, .doorHangerRight) {
+      border: 1px solid var(--pk-line) !important;
+      border-radius: var(--pk-radius) !important;
+      background-color: var(--pk-surface) !important;
+      box-shadow: var(--pk-lift) !important;
+
+      &.menu {
+        border-radius: var(--pk-btn-r) !important;
+      }
+      &::before,
+      &::after {
+        display: none !important;
+      }
+    }
+    /* menu rows: 7 px, washed with the accent under the pointer; the checked option keeps the wash and an orange icon */
+    .toolbarButton.labeled {
+      border-radius: 7px !important;
+      color: var(--pk-text) !important;
+
+      &:is(:hover, :focus-visible, .toggled) {
+        background-color: var(--pk-accent-soft) !important;
+      }
+    }
+    /* find options (Highlight all, Match case …): switched on, they're the dark key */
+    .toggleButton {
+      border-radius: 7px !important;
+      color: var(--pk-text) !important;
+
+      &:is(:hover, :has(> input:focus-visible)) {
+        background-color: var(--pk-surface-2) !important;
+      }
+      &:has(> input:checked) {
+        background-color: var(--pk-chrome-bg) !important;
+        color: var(--pk-chrome-fg) !important;
+      }
+    }
+    #findbar :is(#findPreviousButton, #findNextButton):hover {
+      background-color: var(--pk-surface-2) !important;
+    }
+    :is(#findMsg, #findResultsCount) {
+      font-family: var(--pk-font-mono) !important;
+      color: var(--pk-text-2) !important;
+    }
+
+    /* pop-up lists (the sidebar's view picker and its actions) */
+    .popupMenu {
+      --menu-bg: var(--pk-surface) !important;
+      --menu-text-color: var(--pk-text) !important;
+      --menu-border-color: var(--pk-line) !important;
+      --menu-box-shadow: var(--pk-lift) !important;
+      --menuitem-border-radius: 7px !important;
+      --menuitem-hover-bg: var(--pk-accent-soft) !important;
+      --menuitem-active-bg: var(--pk-accent-soft) !important;
+      --menuitem-focus-bg: var(--pk-accent-soft) !important;
+      --menuitem-focus-outline-color: var(--pk-accent) !important;
+    }
+
+    /* ───────────── sidebar: a module with a graphite F3 band across its header ───────────── */
+    .sidebar {
+      --sidebar-bg-color: var(--pk-surface) !important;
+      --sidebar-border-color: var(--pk-line) !important;
+      --sidebar-box-shadow: var(--pk-lift) !important;
+      --sidebar-border-radius: var(--pk-radius) !important;
+      --resizer-hover-bg-color: var(--pk-accent) !important;
+    }
+    #viewsManager {
+      --sidebar-bg-color: var(--pk-surface) !important;
+      --sidebar-backdrop-filter: none !important;
+      --views-text-color: var(--pk-text) !important;
+      --button-focus-outline-color: var(--pk-accent) !important;
+      --indicator-color: var(--pk-accent) !important;
+      --status-undo-bg: var(--pk-accent-soft) !important;
+      --status-waiting-bg: var(--pk-accent-soft) !important;
+      --image-border-color: var(--pk-line) !important;
+      --image-hover-border-color: var(--pk-ring) !important;
+      --image-current-border-color: var(--pk-accent) !important;
+      --image-page-number-bg: var(--pk-surface-2) !important;
+      --image-current-page-number-bg: var(--pk-accent) !important;
+      --image-current-page-number-fg: var(--pk-on-accent) !important;
+      --image-dragging-placeholder-bg: var(--pk-accent-soft) !important;
+      --multiple-dragging-bg: var(--pk-surface) !important;
+      --multiple-dragging-indicator-bg: var(--pk-accent) !important;
+      --multiple-dragging-text-color: var(--pk-on-accent) !important;
+    }
+    #viewsManagerHeader {
+      --header-bg: var(--pk-surface) !important;
+      --header-shadow: 0 1px 0 var(--pk-line) !important;
+      color: var(--pk-text) !important;
+    }
+    /* the band is the title row only; the selection row under it keeps the module surface */
+    #viewsManagerTitle {
+      margin: 6px 6px 0 !important;
+      padding-block: 6px !important;
+      padding-inline: 4px 10px !important;
+      border-radius: 9px !important;
+      background: var(--pk-chrome-bg) !important;
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .25) !important;
+      color: var(--pk-chrome-fg) !important;
+      --views-text-color: var(--pk-chrome-fg) !important;
+      --button-fg: var(--pk-chrome-fg) !important;
+      --button-hover-fg: var(--pk-chrome-fg) !important;
+      --button-active-fg: var(--pk-chrome-fg) !important;
+      --button-no-bg: transparent !important;
+      --button-bg: transparent !important;
+      --button-hover-bg: rgba(255, 255, 255, .12) !important;
+      --button-active-bg: rgba(255, 255, 255, .2) !important;
+      --views-button-border-color: transparent !important;
+      --button-focus-border-color: var(--pk-chrome-bg) !important;
+
+      .viewsManagerLabel {
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .11em !important;
+      }
+    }
+    /* outline and layers: the current entry gets the accent wash */
+    .treeView {
+      --treeitem-color: var(--pk-text-2) !important;
+      --treeitem-hover-color: var(--pk-text) !important;
+      --treeitem-bg-color: var(--pk-surface-2) !important;
+      --treeitem-selected-color: var(--pk-text) !important;
+      --treeitem-selected-bg-color: var(--pk-accent-soft) !important;
+    }
+
+    /* ───────────── dialogs (password, document properties, alt text, signatures) are modules ───────────── */
+    dialog {
+      border: 1px solid var(--pk-line) !important;
+      border-radius: var(--pk-radius) !important;
+      background-color: var(--pk-surface) !important;
+      box-shadow: var(--pk-lift) !important;
+
+      &::backdrop {
+        background-color: color-mix(in srgb, var(--pk-chrome-bg) 40%, transparent) !important;
+      }
+      :link {
+        color: var(--pk-text) !important;
+      }
+    }
+    .dialog {
+      --dialog-bg-color: var(--pk-surface) !important;
+      --dialog-border-color: var(--pk-line) !important;
+      --dialog-shadow: var(--pk-lift) !important;
+      --separator-color: var(--pk-line) !important;
+      --text-secondary-color: var(--pk-text-2) !important;
+      --textarea-bg-color: var(--pk-bg2) !important;
+      --textarea-fg-color: var(--pk-text) !important;
+      --input-text-bg-color: var(--pk-bg2) !important;
+    }
+
+    /* the floating toolbar over a selected annotation */
+    .editToolbar {
+      --editor-toolbar-bg-color: var(--pk-surface) !important;
+    }
+  }
+}

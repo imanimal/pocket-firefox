@@ -1,0 +1,338 @@
+/* Pocket for Firefox: the browser-chrome layer (uikit/docs/UIKit/README.md is the reference).
+   The static theme in theme/ sets the colours. This file adds what a theme can't: Space Grotesk, B8 keys on the
+   toolbars, program-key tabs, the LCD inlay on the URL bar, F3 label bands on panel and sidebar headers, mono key
+   legends in menus, and pixel-icon window keys.
+
+   Rules this file keeps (written against Firefox 159 with the Nova design on):
+   - Restyle, never remove. Every stock part keeps its place, size and hit area; keys shrink their face by their lip
+     so a toolbar is exactly as tall as before.
+   - Hook into Firefox's own tokens (--toolbarbutton-*, --tab-*, --urlbar-*, --panel-*) where it has them, and draw
+     on its own elements only where it doesn't.
+   - userChrome.css is a user sheet, so anything that has to beat Firefox's styles carries !important.
+   - Both palettes live side by side as light-dark(P9 Cream, P11 Night), so the chrome follows the theme that's on.
+     Inside the selected tab Firefox flips the colour scheme to match its graphite fill, so that one part reads the
+     theme's own --lwt-* values instead.
+   - Motion follows the kit (section 8): keys travel and spring back, the LCD never tweens, and
+     prefers-reduced-motion turns all of it off.
+   Sections: tokens · type · keys (B8) · tabs (program keys) · URL bar (LCD) · panels and menus · bands (F3) ·
+   window keys · motion. */
+
+/* ───────────── tokens ───────────── */
+@property --pk-press { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+:root {
+  /*                   P9 Cream   P11 Night */
+  --pk-bg:        light-dark(#e6e2d8, #1a1917);
+  --pk-bg2:       light-dark(#fbf9f4, #2a2926);
+  --pk-surface:   light-dark(#f6f3ec, #262522);
+  --pk-surface-2: light-dark(#ebe7dd, #302e2a);
+  --pk-line:      light-dark(#d3ccbd, #3f3c36);
+  --pk-text:      light-dark(#1b1915, #f4efe5);
+  --pk-text-2:    light-dark(#4a453c, #d0c9ba);
+  --pk-text-3:    light-dark(#6a645a, #a39c8d);
+  --pk-chrome-bg: light-dark(#2a2722, #0f0e0d);
+  --pk-chrome-fg: light-dark(#f6f3ec, #ece6da);
+  --pk-accent:    light-dark(#ff5b1f, #ff6a2b);
+  --pk-on-accent: #1b1915;
+  --pk-bad:       light-dark(#c8341b, #ff7a5c);
+  --pk-on-bad:    light-dark(#fff, #1b1915);
+  --pk-disp-bg:   light-dark(#b1bd93, #45b3a1);
+  --pk-disp-fg:   light-dark(#1f2a17, #04211c);
+  --pk-card-lip:  light-dark(#d3ccbd, #0b0a09);
+  --pk-accent-soft: color-mix(in srgb, var(--pk-accent) 16%, transparent);
+
+  --pk-radius: 14px;   /* modules: panels */
+  --pk-btn-r: 10px;    /* keys, fields */
+  --pk-font-ui: "Space Grotesk", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --pk-font-mono: "Space Mono", "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+
+  /* motion: durations are calc(var(--pk-m) * N + 1ms), so 0 is instant */
+  --pk-m: 1;
+  --pk-ease: cubic-bezier(.2, .9, .3, 1);
+  --pk-ease-back: cubic-bezier(.3, 1.45, .5, 1);
+
+  /* Firefox's own tokens */
+  --focus-outline-color: var(--pk-accent) !important;
+  --focus-outline-width: 2px !important;
+  --toolbarbutton-border-radius: var(--pk-btn-r) !important;
+  --toolbarbutton-opacity-disabled: .45 !important;
+  --tab-border-radius: 9px !important;
+  --tab-background-color: var(--pk-surface) !important;
+  --tab-background-color-hover: var(--pk-surface-2) !important;
+  --tab-box-shadow-selected: none !important;
+  --urlbar-border-radius: var(--pk-btn-r) !important;
+  --urlbarview-border-radius: var(--pk-btn-r) !important;
+  --urlbarview-background-color-hover: var(--pk-surface-2) !important;
+  --urlbarview-background-color-selected: var(--pk-accent-soft) !important;
+  --urlbarview-text-color-selected: var(--pk-text) !important;
+  --panel-border-radius: var(--pk-radius) !important;
+  --panel-menuitem-border-radius: 7px !important;
+  --panel-box-shadow: 0 2px 0 var(--pk-card-lip) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --pk-m: 0 !important; }
+}
+
+/* ───────────── type: Space Grotesk for everything you read, Space Mono for key legends and counts ───────────── */
+:root,
+:root * {
+  font-family: var(--pk-font-ui) !important;
+}
+:root .tab-label {
+  font-weight: 600 !important;
+}
+/* shortcut legends are printed key caps, like kbd in the palette (.pal-it kbd) */
+:root .menu-accel,
+:root .subviewbutton[shortcut]::after {
+  align-self: center !important;
+  font-family: var(--pk-font-mono) !important;
+  font-size: .78em !important;
+  line-height: 1.2 !important;
+  color: var(--pk-text-2) !important;
+  background: var(--pk-surface) !important;
+  border: 1px solid var(--pk-line) !important;
+  border-bottom-width: 2px !important;
+  border-radius: 5px !important;
+  padding: .12em .42em !important;
+  opacity: 1 !important;
+}
+:root .toolbarbutton-badge {
+  font-family: var(--pk-font-mono) !important;
+}
+
+/* ───────────── B8 keys: every toolbar button is a raised key on a 3 px lip ─────────────
+   The face gives up the lip's 3 px of height (margin-bottom reserves it), so the key and its lip together are as
+   tall as the URL bar beside it. Pressing sinks the face onto the lip; letting go springs it back past the top. */
+toolbar .toolbarbutton-1 {
+  --pk-travel: 3px;
+  --pk-ring: color-mix(in srgb, var(--pk-line) 75%, #000);
+  --pk-lip: color-mix(in srgb, var(--pk-line) 55%, #000);
+  --pk-shade: rgba(0, 0, 0, .14);
+  --pk-shine: 14%;
+  --toolbarbutton-background-color: var(--pk-surface-2) !important;
+  --toolbarbutton-background-color-hover: var(--pk-surface-2) !important;
+  --toolbarbutton-background-color-active: var(--pk-surface-2) !important;
+  --toolbarbutton-background-color-disabled: var(--pk-surface-2) !important;
+
+  > :is(.toolbarbutton-icon, .toolbarbutton-badge-stack, .toolbarbutton-text) {
+    padding-top: calc(var(--toolbarbutton-padding-inner) - 1px) !important;
+    padding-bottom: calc(var(--toolbarbutton-padding-inner) - 2px) !important;
+    margin-bottom: var(--pk-travel) !important;
+    background-image: linear-gradient(to bottom, color-mix(in srgb, #fff var(--pk-shine), transparent), transparent) !important;
+    translate: 0 calc(var(--pk-press) * var(--pk-travel));
+    box-shadow:
+      0 0 0 1px var(--pk-ring),
+      0 calc((1 - var(--pk-press)) * var(--pk-travel)) 0 var(--pk-lip),
+      0 calc(5px - var(--pk-press) * 4px) calc(10px - var(--pk-press) * 7px) var(--pk-shade) !important;
+    transition: --pk-press calc(var(--pk-m) * 240ms + 1ms) var(--pk-ease-back), background-color calc(var(--pk-m) * 120ms + 1ms) !important;
+  }
+  > .toolbarbutton-icon {
+    height: calc(var(--toolbarbutton-icon-size) - var(--pk-travel)) !important;
+  }
+  > .toolbarbutton-text {
+    min-height: calc(16px + 2 * var(--toolbarbutton-padding-inner) - var(--pk-travel)) !important;
+  }
+
+  &:not([disabled]):is(:hover:active, [open]) > :is(.toolbarbutton-icon, .toolbarbutton-badge-stack, .toolbarbutton-text) {
+    --pk-press: 1;
+    transition: --pk-press calc(var(--pk-m) * 60ms + 1ms) ease-out, background-color calc(var(--pk-m) * 120ms + 1ms) !important;
+  }
+
+  /* a latched key (a panel or sidebar it toggles is showing) is the dark key: graphite, its icon lit orange */
+  &[checked]:not([disabled]) {
+    --pk-ring: #000;
+    --pk-lip: #000;
+    --pk-shade: rgba(0, 0, 0, .2);
+    --pk-shine: 12%;
+    --toolbarbutton-background-color: var(--pk-chrome-bg) !important;
+    --toolbarbutton-background-color-hover: var(--pk-chrome-bg) !important;
+    --toolbarbutton-background-color-active: var(--pk-chrome-bg) !important;
+    --toolbarbutton-icon-fill: var(--pk-accent) !important;
+    color: var(--pk-chrome-fg) !important;
+  }
+
+  &:focus-visible > :is(.toolbarbutton-icon, .toolbarbutton-badge-stack, .toolbarbutton-text) {
+    outline: 2px solid var(--pk-accent) !important;
+    outline-offset: 2px !important;
+  }
+}
+@media (hover: hover) {
+  toolbar .toolbarbutton-1:not([disabled]):hover { --pk-shine: 26%; }
+  toolbar .toolbarbutton-1[checked]:not([disabled]):hover { --pk-shine: 22%; }
+}
+
+/* ───────────── tabs: program keys ─────────────
+   Each tab is a program key (.nv): a surface key on a 2 px lip. The selected tab is the pressed one, graphite
+   (tab_selected), with the theme's tab_line as its rim: black on Cream, orange on Night. */
+.tabbrowser-tab > .tab-stack > .tab-background {
+  box-shadow: 0 0 0 1px var(--pk-line), 0 2px 0 var(--pk-line) !important;
+
+  &:is([selected], [multiselected]) {
+    box-shadow: 0 0 0 1px var(--lwt-tab-line-color, #000), 0 2px 0 #000 !important;
+  }
+}
+/* the key that just latched travels down and springs back, and its LED (the favicon) flickers on */
+.tabbrowser-tab[selected] > .tab-stack {
+  animation: pk-key-up calc(var(--pk-m) * 220ms + 1ms) var(--pk-ease);
+}
+.tabbrowser-tab[selected] .tab-icon-image {
+  animation: pk-led-on calc(var(--pk-m) * 260ms + 1ms) steps(1, end);
+}
+@keyframes pk-key-up { 0% { translate: 0 2px; } 45% { translate: 0 -.7px; } 100% { translate: 0 0; } }
+@keyframes pk-led-on { 0% { opacity: 0; } 25% { opacity: 1; } 45% { opacity: .2; } 65%, 100% { opacity: 1; } }
+
+/* ───────────── URL bar: the LCD inlay ─────────────
+   At rest the URL bar is the device's display: a reflective panel with a dot-matrix texture in a graphite bezel,
+   dark digits (7.5:1 on Cream, 6.6:1 on Night). Click or type and it becomes a plain recessed field (toolbar_field_focus)
+   with the accent ring, so you edit on a solid surface and the results open on one. The display never tweens. */
+#urlbar > .urlbar-background {
+  transition: none !important;
+}
+#urlbar:not([focused], [open], [popover-open]) {
+  color: var(--pk-disp-fg) !important;
+  --toolbar-field-text-color: var(--pk-disp-fg) !important;
+  --urlbar-box-text-color: var(--pk-disp-fg) !important;
+
+  #urlbar-input {
+    color: var(--pk-disp-fg) !important;
+  }
+  > .urlbar-background {
+    border: 4px solid var(--pk-chrome-bg) !important;
+    background:
+      repeating-linear-gradient(90deg, rgba(0, 0, 0, .045) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, .045) 0 1px, transparent 1px 3px),
+      linear-gradient(170deg, color-mix(in srgb, #fff 18%, var(--pk-disp-bg)), var(--pk-disp-bg) 60%) !important;
+    background-clip: padding-box !important;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(0, 0, 0, .3), 0 0 0 1px #000 !important;
+  }
+  #urlbar-input::placeholder {
+    color: color-mix(in srgb, var(--pk-disp-fg) 82%, var(--pk-disp-bg)) !important;
+    opacity: 1 !important;
+  }
+}
+#urlbar:is([focused], [open], [popover-open]) #urlbar-input::placeholder {
+  color: var(--pk-text-3) !important;
+  opacity: 1 !important;
+}
+
+/* ───────────── panels and menus: modules and pick lists ─────────────
+   Arrow panels are modules (14 px, a 1 px ring from popup_border and a 2 px lip). Menus are pick lists at the
+   toast radius; rows are 7 px, washed with the accent when highlighted (popup_highlight). */
+menupopup {
+  --panel-border-radius: var(--pk-btn-r) !important;
+}
+panel[type="arrow"] {
+  --panel-border-radius: var(--pk-radius) !important;
+}
+
+/* ───────────── F3 label bands ─────────────
+   Panel headers (Bookmarks, History, Extensions …) and the sidebar header are printed graphite bands: uppercase
+   label in bold with wide tracking, pixel-style icon in orange, keys in the band take its colour. */
+.panel-header {
+  background: var(--pk-chrome-bg) !important;
+  color: var(--pk-chrome-fg) !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .25) !important;
+  border-radius: 7px !important;
+  margin: 4px 8px !important;
+
+  > h1 {
+    font-size: .78em !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .11em !important;
+  }
+  > .subviewbutton-back {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+}
+#sidebar-header {
+  background: var(--pk-chrome-bg) !important;
+  color: var(--pk-chrome-fg) !important;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .25) !important;
+  border-bottom-color: transparent !important;
+
+  #sidebar-title {
+    font-size: .78em !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .11em !important;
+    color: inherit !important;
+  }
+  #sidebar-icon {
+    fill: var(--pk-accent) !important;
+  }
+  :is(#sidebar-switcher-target, #sidebar-close) {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+}
+
+/* ───────────── window keys ─────────────
+   Minimize, maximize/restore and close become the kit's window keys (.wk): small keys on a 2 px lip with the 9×9
+   pixel icons (wmin, wmax, wrest, close from PIX in ui/js/app.js). Each button keeps its full size and hit area
+   (Windows 11 snap layouts read it); only the padding around the face changes. Close turns --bad under the pointer.
+   macOS keeps its own traffic lights, so this section skips it. */
+@media not (-moz-platform: macos) {
+  .titlebar-buttonbox .titlebar-button {
+    position: relative !important;
+    padding: 0 7px !important;
+    background-color: transparent !important;
+    color: var(--pk-text-2) !important;
+
+    &::before {
+      content: "" !important;
+      display: block !important;
+      width: 32px;
+      height: 23px;
+      margin-bottom: 2px;
+      border-radius: 7px;
+      background: linear-gradient(to bottom, color-mix(in srgb, #fff var(--pk-shine, 14%), var(--pk-face, var(--pk-surface-2))), var(--pk-face, var(--pk-surface-2)));
+      translate: 0 calc(var(--pk-press) * 2px);
+      box-shadow:
+        0 0 0 1px var(--pk-ring, color-mix(in srgb, var(--pk-line) 75%, #000)),
+        0 calc((1 - var(--pk-press)) * 2px) 0 var(--pk-lip, color-mix(in srgb, var(--pk-line) 55%, #000));
+      transition: --pk-press calc(var(--pk-m) * 220ms + 1ms) var(--pk-ease-back), background calc(var(--pk-m) * 120ms + 1ms);
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 9px;
+      height: 9px;
+      margin: auto;
+      background-color: currentColor;
+      mask: var(--pk-icon) center / 9px 9px no-repeat;
+      translate: 0 calc(var(--pk-press) * 2px - 1px);
+      transition: --pk-press calc(var(--pk-m) * 220ms + 1ms) var(--pk-ease-back);
+    }
+    &:hover:active::before,
+    &:hover:active::after {
+      --pk-press: 1;
+      transition-duration: calc(var(--pk-m) * 60ms + 1ms);
+    }
+  }
+  .titlebar-buttonbox .titlebar-min { --pk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cpath d='M1 6h7v1h-7zM1 7h7v1h-7z'/%3E%3C/svg%3E"); }
+  .titlebar-buttonbox .titlebar-max { --pk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h7v1h-7zM1 2h7v1h-7zM1 3h1v1h-1zM7 3h1v1h-1zM1 4h1v1h-1zM7 4h1v1h-1zM1 5h1v1h-1zM7 5h1v1h-1zM1 6h1v1h-1zM7 6h1v1h-1zM1 7h7v1h-7z'/%3E%3C/svg%3E"); }
+  .titlebar-buttonbox .titlebar-restore { --pk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h6v1h-6zM3 1h6v1h-6zM3 2h1v1h-1zM8 2h1v1h-1zM0 3h7v1h-7zM8 3h1v1h-1zM0 4h7v1h-7zM8 4h1v1h-1zM0 5h1v1h-1zM6 5h3v1h-3zM0 6h1v1h-1zM6 6h1v1h-1zM0 7h7v1h-7z'/%3E%3C/svg%3E"); }
+  .titlebar-buttonbox .titlebar-close { --pk-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM3 3h1v1h-1zM5 3h1v1h-1zM4 4h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM2 6h1v1h-1zM6 6h1v1h-1zM1 7h1v1h-1zM7 7h1v1h-1z'/%3E%3C/svg%3E"); }
+  @media (hover: hover) {
+    .titlebar-buttonbox .titlebar-button:hover {
+      --pk-shine: 26%;
+      color: var(--pk-text) !important;
+    }
+    .titlebar-buttonbox .titlebar-close:hover {
+      --pk-face: var(--pk-bad);
+      --pk-shine: 14%;
+      color: var(--pk-on-bad) !important;
+    }
+  }
+}
+
+/* ───────────── motion ───────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tabbrowser-tab[selected] > .tab-stack,
+  .tabbrowser-tab[selected] .tab-icon-image {
+    animation: none !important;
+  }
+}
